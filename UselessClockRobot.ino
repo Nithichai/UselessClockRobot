@@ -7,13 +7,13 @@
 #include "BLEServer.h"
 #include "EEPROM.h"
 
-class DateTimeController {
+class DateTimeDisplayController {
   private:
     String stringTime;
     String stringDate;
 
   public:
-    DateTimeController() {
+    DateTimeDisplayController() {
       this->stringTime = "";
       this->stringDate = "";
     }
@@ -66,33 +66,33 @@ class DateTimeController {
     }
 };
 
-class LedDisplay {
+class LedDisplayController {
   private:
     Adafruit_8x16matrix matrix;
-    DateTimeController dateTimeController;
+    DateTimeDisplayController dateTimeDisplayController;
     int8_t shiftIndex;
 
     void printFromShowMode(uint8_t showMode) {
       switch (showMode) {
         case 1:
-          matrix.print(dateTimeController.getStringDate());
+          matrix.print(dateTimeDisplayController.getStringDate());
           break;
         default:
-          matrix.print(dateTimeController.getStringTime());
+          matrix.print(dateTimeDisplayController.getStringTime());
       }
     }
 
     int8_t getStringLength(uint8_t showMode) {
       if (showMode == 1) {
-        return dateTimeController.getStringDate().length() * 6;
+        return dateTimeDisplayController.getStringDate().length() * 6;
       }
-      return dateTimeController.getStringTime().length() * 6;
+      return dateTimeDisplayController.getStringTime().length() * 6;
     }
 
   public:
-    LedDisplay() {
+    LedDisplayController() {
       this->matrix = Adafruit_8x16matrix();
-      this->dateTimeController = DateTimeController();
+      this->dateTimeDisplayController = DateTimeDisplayController();
       this->matrix.begin(0x70);
       this->matrix.setTextSize(1);
       this->matrix.setTextWrap(false);
@@ -113,7 +113,7 @@ class LedDisplay {
     }
 
     void setTime(uint8_t hour, uint8_t minute) {
-      dateTimeController.setStringTime(
+      dateTimeDisplayController.setStringTime(
         String(hour / 10)
         + String(hour % 10)
         + ":" + String(minute / 10)
@@ -122,13 +122,13 @@ class LedDisplay {
     }
 
     void setDate(Time::Day day, uint8_t date, uint8_t month, uint16_t year) {
-      dateTimeController.setStringDate(
-        dateTimeController.dayAsString(day)
+      dateTimeDisplayController.setStringDate(
+        dateTimeDisplayController.dayAsString(day)
         + " "
         + String(date / 10)
         + String(date % 10)
         + " "
-        + dateTimeController.monthAsString(month)
+        + dateTimeDisplayController.monthAsString(month)
         + " "
         + String(year / 1000)
         + String(year % 1000 / 100)
@@ -137,59 +137,188 @@ class LedDisplay {
       );
     }
 };
+LedDisplayController ledDisplayController = LedDisplayController();
 
-//class BLECallbacks: public BLECharacteristicCallbacks {
-//  private:
-//    void saveEEPROM(
-//      String hour,
-//      String minute,
-//      String second,
-//      String day,
-//      String date,
-//      String month,
-//      String year,
-//    ) {
-//      EEPROM.begin(16);
-//    }
-//    void subStringFromMobile(String value) {
-//      // hr-min-second-day-date-month-year
-//      // 00-00-00-00-00-00-0000
-//
-//    }
-//
-//  public:
-//    void onWrite(BLECharacteristic *pCHaracteristic) {
-//      String value = pCharacteristic->getValue();
-//      if (value.length() > 0) {
-//        subStringFromMobile(value);
-//      }
-//    }
-//}
-//
-//class BLEController {
-//  private:
-//    BLECallbacks bleCallbacks;
-//
-//  public:
-//
-//}
+class EEPROMDataController {
+  public:
+    void setDateTimeSavedFlag() {
+      EEPROM.begin(1);
+      EEPROM.write(0, 1);
+      EEPROM.commit();
+      EEPROM.end();
+    }
+
+    void setDateTimeRemovedFlag() {
+      EEPROM.begin(1);
+      EEPROM.write(0, 0);
+      EEPROM.commit();
+      EEPROM.end();
+    }
+
+    boolean getDateTimeFlag() {
+      return EEPROM.read(0);
+    }
+};
+EEPROMDataController eepromDataController = EEPROMDataController();
+
+class BLEDataController {
+  private:
+    int hour;
+    int minute;
+    int second;
+    int day;
+    int date;
+    int month;
+    int year;
+
+  public:
+    void saveDateTime(String message) {
+      hour = message.substring(0, 2).toInt();
+      minute = message.substring(3, 5).toInt();
+      second = message.substring(6, 8).toInt();
+      day = message.substring(9, 11).toInt();
+      date = message.substring(12, 14).toInt();
+      month = message.substring(12, 14).toInt();
+      year = message.substring(15).toInt();
+
+      eepromDataController.setDateTimeSavedFlag();
+    }
+
+    int getHour() {
+      return hour;
+    }
+
+    int getMinute() {
+      return minute;
+    }
+
+    int getSecond() {
+      return second;
+    }
+
+    int getDay() {
+      return day;
+    }
+
+    int getDate() {
+      return date;
+    }
+
+    int getMonth() {
+      return month;
+    }
+
+    int getYear() {
+      return year;
+    }
+};
+BLEDataController bleDataController = BLEDataController();
+
+class BLECallbacks: public BLECharacteristicCallbacks {
+  public:
+    void onWrite(BLECharacteristic *bleCharacteristic) {
+      String message = bleCharacteristic->getValue().c_str();
+      if (message.length() > 0) {
+        bleDataController.saveDateTime(message);
+      }
+    }
+};
+
+class BLEController {
+  private:
+    BLECallbacks bleCallbacks;
+    BLEServer *bleServer;
+    BLEService *bleService;
+    BLECharacteristic *bleCharacteristic;
+    boolean isConnect;
+
+  public:
+    void advertising() {
+      BLEDevice::init("UselessClockRobot");
+      BLEServer *bleServer = BLEDevice::createServer();
+      BLEService *bleService = bleServer->createService("82e46351-4541-4740-92f6-329ce106dd29");
+      BLECharacteristic *bleCharacteristic = bleService->createCharacteristic(
+                                   "b88b21ed-805d-4c1c-9343-df787d4caee1",
+                                   BLECharacteristic::PROPERTY_WRITE
+                                 );
+      bleCharacteristic->setCallbacks(new BLECallbacks());
+      BLEAdvertising *bleAdvertising = bleServer->getAdvertising();
+      bleService->start();
+    }
+};
+BLEController bleController = BLEController();
+
 
 DS1302 rtc(18, 17, 16);
-LedDisplay ledDisplay = LedDisplay();
+class RTCController {
+  public:
+    RTCController() {
+      rtc.writeProtect(false);
+      rtc.halt(false);
+    }
+
+    void setDateTime(
+      uint8_t hour,
+      uint8_t minute,
+      uint8_t second,
+      Time::Day day,
+      uint8_t date,
+      uint8_t month,
+      uint8_t year
+    ) {
+      Time time(year, month, date, hour, minute, second, day);
+      rtc.time(time);
+    }
+
+    uint8_t getHour() {
+      return rtc.time().hr;
+    }
+
+    uint8_t getMinute() {
+      return rtc.time().min;
+    }
+
+    uint8_t getSecond() {
+      return rtc.time().sec;
+    }
+
+    Time::Day getDay() {
+      return rtc.time().day;
+    }
+
+    uint8_t getDate() {
+      return rtc.time().date;
+    }
+
+    uint8_t getMonth() {
+      return rtc.time().mon;
+    }
+
+    uint16_t getYear() {
+      return rtc.time().yr;
+    }
+};
+RTCController rtcController = RTCController();
 
 void setup() {
-  Serial.begin(112500);
-
-  rtc.writeProtect(false);
-  rtc.halt(false);
-  Time time(2020, 2, 28, 22, 19, 0, Time::kSunday);
-  rtc.time(time);
+  // do nothing
 }
 
 void loop() {
-  Time time = rtc.time();
-  ledDisplay.setTime(time.hr, time.min);
-  ledDisplay.setDate(time.day, time.date, time.mon, time.yr);
-  ledDisplay.show(0);
-  delay(100);
+  if (eepromDataController.getDateTimeFlag()) {
+    ledDisplayController.setTime(
+      rtcController.getHour(),
+      rtcController.getMinute()
+    );
+    ledDisplayController.setDate(
+      rtcController.getDay(),
+      rtcController.getDate(),
+      rtcController.getMonth(),
+      rtcController.getYear()
+    );
+    ledDisplayController.show(0);
+    delay(100);
+  } else {
+    bleController.advertising();
+  }
 }
