@@ -1,25 +1,26 @@
 #include "BLEController.h"
 
-BLEController::BLEController()
+BLEController::BLEController(TimeController *timeController, RTCController *rtcController)
 {
+    this->timeController = timeController;
+    this->rtcController = rtcController;
     this->isAdvertised = false;
 }
 
-void BLEController::advertising(TimeController* timeController, RTCController* rtcController)
+void BLEController::advertising()
 {
     if (!isAdvertised)
     {
         BLEDevice::init("UselessClockRobot");
-        BLEServer *bleServer = BLEDevice::createServer();
-        BLEService *bleService = bleServer->createService("82e46351-4541-4740-92f6-329ce106dd29");
-        BLECharacteristic *bleCharacteristic = bleService->createCharacteristic(
+        bleServer = BLEDevice::createServer();
+        bleService = bleServer->createService("82e46351-4541-4740-92f6-329ce106dd29");
+        bleCharacteristic = bleService->createCharacteristic(
             "b88b21ed-805d-4c1c-9343-df787d4caee1",
             BLECharacteristic::PROPERTY_WRITE);
         bleCharacteristic->setCallbacks(new BLECallbacks(timeController, rtcController));
         bleService->start();
 
-        BLEAdvertising *bleAdvertising = BLEDevice::getAdvertising();
-
+        bleAdvertising = BLEDevice::getAdvertising();
         bleAdvertising->addServiceUUID("82e46351-4541-4740-92f6-329ce106dd29");
         bleAdvertising->setScanResponse(true);
         bleAdvertising->setMinPreferred(0x06);
@@ -28,4 +29,11 @@ void BLEController::advertising(TimeController* timeController, RTCController* r
 
         isAdvertised = true;
     }
+}
+
+void BLEController::stop()
+{
+    bleService->stop();
+    BLEDevice::getAdvertising()->stop();
+    isAdvertised = false;
 }

@@ -2,10 +2,14 @@
 #define LedDisplayController_h
 
 #include "Arduino.h"
+#include "Wire.h"
+#include "Adafruit_GFX.h"
+#include "Adafruit_LEDBackpack.h"
 
 class LedDisplayController
 {
 private:
+    Adafruit_8x16matrix* matrix;
     int16_t shiftIndex;
     String dateTimeMessage;
     String timeMessage;

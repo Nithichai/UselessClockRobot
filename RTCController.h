@@ -5,6 +5,9 @@
 #include "DS1302.h"
 
 class RTCController {
+  private:
+    DS1302* rtc;
+
   public:
     RTCController(void);
     void setTime(Time time);

@@ -1,17 +1,12 @@
 #include "LedDisplayController.h"
-#include "Wire.h"
-#include "Adafruit_GFX.h"
-#include "Adafruit_LEDBackpack.h"
-
-Adafruit_8x16matrix matrix;
 
 LedDisplayController::LedDisplayController(void) {
-    matrix = Adafruit_8x16matrix();
-    matrix.begin(0x70);
-    matrix.setTextSize(1);
-    matrix.setTextWrap(false);
-    matrix.setRotation(1);
-    matrix.setTextColor(LED_ON);
+    matrix = new Adafruit_8x16matrix();
+    matrix->begin(0x70);
+    matrix->setTextSize(1);
+    matrix->setTextWrap(false);
+    matrix->setRotation(1);
+    matrix->setTextColor(LED_ON);
 }
 
 void LedDisplayController::slideDateTimeMessage()
@@ -44,19 +39,19 @@ int16_t LedDisplayController::getDisplayTimeLength()
 
 void LedDisplayController::showDateTime()
 {
-    matrix.clear();
-    matrix.setCursor(shiftIndex, 0);
-    matrix.print(dateTimeMessage);
-    matrix.writeDisplay();
+    matrix->clear();
+    matrix->setCursor(shiftIndex, 0);
+    matrix->print(dateTimeMessage);
+    matrix->writeDisplay();
     slideDateTimeMessage();
 }
 
 void LedDisplayController::showTime()
 {
-    matrix.clear();
-    matrix.setCursor(shiftIndex, 0);
-    matrix.print(timeMessage);
-    matrix.writeDisplay();
+    matrix->clear();
+    matrix->setCursor(shiftIndex, 0);
+    matrix->print(timeMessage);
+    matrix->writeDisplay();
     slideTimeMessage();
 }
 

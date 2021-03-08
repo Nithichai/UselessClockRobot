@@ -10,13 +10,18 @@
 class BLEController
 {
 private:
+    BLEServer* bleServer;
+    BLEService* bleService;
+    BLECharacteristic* bleCharacteristic;
+    BLEAdvertising* bleAdvertising;
     TimeController* timeController;
     RTCController* rtcController;
     bool isAdvertised;
 
 public:
-    BLEController();
-    void advertising(TimeController* timeController, RTCController* WrtcController);
+    BLEController(TimeController* timeController, RTCController* WrtcController);
+    void advertising();
+    void stop();
 };
 
 #endif

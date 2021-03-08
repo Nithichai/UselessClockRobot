@@ -14,13 +14,14 @@ void setup()
   timeController = new TimeController();
   rtcController = new RTCController();
   ledDisplayController = new LedDisplayController();
-  bleController = new BLEController();
+  bleController = new BLEController(timeController, rtcController);
 }
 
 void loop()
 {
   if (timeController->getSaveTimeFlag())
   {
+    bleController->stop();
     String msg = timeController->getDisplayDateTime(rtcController->getTime());
     ledDisplayController->setDateTimeMessage(msg);
     ledDisplayController->showDateTime();
@@ -28,6 +29,6 @@ void loop()
   }
   else
   {
-    bleController->advertising(timeController, rtcController);
+    bleController->advertising();
   }
 }
